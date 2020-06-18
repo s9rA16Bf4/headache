@@ -1,0 +1,9 @@
+let A = 5
+let B = 0
+let C = 2
+let N = nL
+
+while [$A > $B] & [$A > $C] {
+ print $A $N
+ A = $A - 1
+}
