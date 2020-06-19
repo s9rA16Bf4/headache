@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 #include "globalValues.hpp"
 #include "errorHandling.hpp"
 #include "process.hpp"

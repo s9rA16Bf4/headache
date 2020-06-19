@@ -53,7 +53,10 @@ void built::call_def_var(std::string name, std::string value, bool constValue){
     if (value[0] == '$'){ // its a variable
       value.erase(0,1); // Removes the dollar sign
       variable *B = this->findVariable(value); // find the value
-      if (B){ value = B->value; }
+      if (B){
+        if (B->value == "rN"){ value = std::to_string(std::rand() % 10 + 1); }
+        else{ value = B->value; }
+      }
       else{ error("The variable "+value+" has not been declared!"); return; }
     }
     A = new variable();
@@ -98,6 +101,7 @@ void built::call_upd_var(variable* A, std::string varOrValue){
   if (!B){ A->value = varOrValue; } // its a value
   else{
     if (B->value == "inS"){ std::getline(std::cin, A->value); } // Take an input from the user and save it
+    else if (B->value == "rN"){ A->value = std::to_string(std::rand() % 10 + 1); } // Generates a random number between 1 and 10
     else{ A->value = B->value; } // Creates a "copy" of B
   }
 }
@@ -236,6 +240,7 @@ bool built::call_statement_check(std::string &valueA, std::string &valueB, std::
     else if (comparison == "<="){(std::stof(valueA) <= std::stof(valueB))? toReturn=true:toReturn=false; }
     else if (comparison == ">="){(std::stof(valueA) >= std::stof(valueB))? toReturn=true:toReturn=false; }
     else if (comparison == "=="){(std::stof(valueA) == std::stof(valueB))? toReturn=true:toReturn=false; }
+    else if (comparison == "!="){(std::stof(valueA) != std::stof(valueB))? toReturn=true:toReturn=false; }
     else if (comparison == "in"){ (call_if_IN(valueB, valueA))? toReturn=true:toReturn=false; }
     else{ error("Unknown comparison "+comparison); return toReturn; }
 
@@ -247,7 +252,6 @@ bool built::call_statement_check(std::string &valueA, std::string &valueB, std::
 }
 
 void built::call_system(std::vector<std::string> guts){ for (std::string entry:guts){ system(entry.c_str()); }}
-
 
 // Mathematical operators
 std::string built::call_add(std::string valueA, std::string valueB){
