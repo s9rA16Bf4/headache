@@ -61,6 +61,8 @@ void statements(std::vector<std::string> contents){
 
             }else{ _bt.call_upd_var(A, splitGuts[i+2]); break; } // Update the variable
           }
+          else if (A && splitGuts[i+1] == "<<"){ _bt.call_leftShift(A, splitGuts[i+2]); break; }
+          else if (A && splitGuts[i+1] == ">>"){ _bt.call_rightShift(A, splitGuts[i+2]); break;}
           else if (B){ _bt.call_run_func(B); break; } // Call the function
           else{ error("Unknown syntax "+splitGuts[i]+""); }
         }

@@ -16,7 +16,6 @@
 class built{
 public:
   bool call_if_IN(std::string, std::string); // Investigates if 'word' exists in 'message'
-  std::vector<std::string> call_for_IN(std::string, std::string); // Returns a vector consisting of word size strings
   void call_print(std::vector<std::string>); // Prints a message to the screen and/or the contents of a variable
   void call_def_var(std::string, std::string, bool); // Defines a classless variable
   void call_def_func(std::string, std::string, std::vector<std::string>);
@@ -28,6 +27,8 @@ public:
   void call_if_run(std::vector<std::string>, std::vector<std::string>); // Checks if the if is valid and runs what's supposed to run
   void call_while_run(std::vector<std::string>, std::vector<std::string>); // Checks if the while loop is valid and runs what's supposed to run
   void call_system(std::vector<std::string>); // Executes a command on the computer
+  void call_leftShift(variable*, std::string);
+  void call_rightShift(variable*, std::string);
 
   std::string call_add(std::string, std::string); // Adds two values together were the none of them are variables
   std::string call_sub(std::string, std::string); // Subtracts two values together were the none of them are variables

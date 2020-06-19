@@ -13,16 +13,6 @@ bool built::call_if_IN(std::string message, std::string word){
   return toReturn;
 }
 
-std::vector<std::string> built::call_for_IN(std::string message, std::string word){
-  std::vector<std::string> toReturn;
-  unsigned int wordSize = word.size();
-  int amountOfSteps = message.size() % wordSize;
-
-
-
-  return toReturn;
-} // TODO
-
 void built::call_print(std::vector<std::string> listToPrint){
   for (unsigned int i = 1; i < listToPrint.size(); i++){
     std::string message = listToPrint[i];
@@ -252,6 +242,18 @@ bool built::call_statement_check(std::string &valueA, std::string &valueB, std::
 }
 
 void built::call_system(std::vector<std::string> guts){ for (std::string entry:guts){ system(entry.c_str()); }}
+
+void built::call_leftShift(variable* A, std::string value){
+  try{
+    A->value = std::to_string(std::stoi(A->value)<<std::stoi(value));
+  }catch(std::invalid_argument& e){ error("Both the value of the variable and the value to shift must be ints!"); return; }
+}
+
+void built::call_rightShift(variable* A, std::string value){
+  try{
+    A->value = std::to_string(std::stoi(A->value)>>std::stoi(value));
+  }catch(std::invalid_argument& e){ error("Both the value of the variable and the value to shift must be ints!"); return; }
+}
 
 // Mathematical operators
 std::string built::call_add(std::string valueA, std::string valueB){
