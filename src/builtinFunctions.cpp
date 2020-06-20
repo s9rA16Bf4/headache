@@ -45,13 +45,17 @@ void built::call_def_var(std::string name, std::string value, bool constValue){
   if (!A){
     if (value[0] == '$'){ // its a variable
       value.erase(0,1); // Removes the dollar sign
-      variable *B = this->findVariable(value); // find the value
-      if (B){
-        if (B->value == "rN"){ value = std::to_string(std::rand() % 10 + 1); }
-        else{ value = B->value; }
+      if (value.find("$") != std::string::npos){ value = call_array_at_ind(value); }
+      else{
+        variable *B = this->findVariable(value); // find the value
+        if (B){
+          if (B->value == "rN"){ value = std::to_string(std::rand() % 10 + 1); }
+          else{ value = B->value; }
+        }
+        else{ error("The variable "+value+" has not been declared!"); return; }
       }
-      else{ error("The variable "+value+" has not been declared!"); return; }
     }
+
     A = new variable();
     A->name = name;
     A->value = value;
@@ -103,7 +107,15 @@ std::vector<std::string> built::call_include(std::string fileName){
 void built::call_upd_var(variable* A, std::string varOrValue){
   if (varOrValue[0] == '$'){ varOrValue.erase(0,1); }
   variable *B = this->findVariable(varOrValue); // Is it a variable or a value?
-  if (!B){ A->value = varOrValue; } // its a value
+
+  if (!B){
+    if (varOrValue.find("$") != std::string::npos){
+      std::string result = this->call_array_at_ind(varOrValue); //!!!!
+      if (result != ""){ A->value = result; }
+      else{ A->value = varOrValue; }
+    }
+    else{ A->value = varOrValue; }  // its a value
+  }
   else{
     if (B->value == "inS"){ std::getline(std::cin, A->value); } // Take an input from the user and save it
     else if (B->value == "rN"){ A->value = std::to_string(std::rand() % 10 + 1); } // Generates a random number between 1 and 10
@@ -164,6 +176,8 @@ void built::call_while_run(std::vector<std::string> splitGuts, std::vector<std::
 
 variable* built::findVariable(std::string name){
   variable* A = nullptr;
+
+  if (name[0] == '$'){ name.erase(0,1); }
 
   for (variable* var:variables){
     if (var->name == name){
@@ -310,6 +324,25 @@ std::string built::call_array_at_ind(std::string arrayName){
 
 void built::call_array_upd_at_ind(array *A, std::string index, std::string value){
   int indexInt = 0;
+
+  variable *B = this->findVariable(index); // Are these variables?
+  variable *C = this->findVariable(value);
+  if (B){ index = B->value; }
+  if (C){ value = C->value; }
+  else{ // Might be an array
+    std::string getIndex = this->call_get_array_index(value);
+    array* D = this->findArray(this->call_get_array_name(value));
+    if (D){
+      variable *E = this->findVariable(getIndex);
+      if (E){ getIndex = E->value; }
+
+      try{ indexInt = std::stoi(getIndex); } // Tries to convert it to an int
+      catch(std::invalid_argument& e){ error("Index can't be a string and must be an int"); return; }
+      if (indexInt >= A->gut.size()){ error("The index is out of bounds"); return;}
+      value = D->gut[indexInt];
+    }
+  }
+
   try{ indexInt = std::stoi(index); } // Tries to convert it to an int
   catch(std::invalid_argument& e){ error("Index can't be a string and must be an int"); return; }
   if (indexInt >= A->gut.size()){ error("The index is out of bounds"); return;}
