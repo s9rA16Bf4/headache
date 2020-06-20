@@ -7,7 +7,6 @@
 struct function{
   std::string name;
   std::vector<std::string> guts;
-  std::string returnType;
 };
 
 #endif

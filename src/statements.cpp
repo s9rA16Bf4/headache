@@ -12,14 +12,12 @@ void statements(std::vector<std::string> contents){
     for (unsigned int i = 0; i < splitGuts.size(); i++){
       // Great wall of if's
       if (splitGuts[0] != "%"){ // If the line starts with a % then its a comment and shall be ignored
-        if (splitGuts[i] == "let" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], false); break; }
+        if (splitGuts[i] == "let" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], false); break; } // variable dec
+        if (splitGuts[i] == "let" && splitGuts[i+2] == ":="){ _bt.call_def_arr(splitGuts[i+1], splitGuts, i); break; } // array dec
         if (splitGuts[i] == "const" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], true); break; }
         if (splitGuts[i] == "print"){ _bt.call_print(splitGuts); break;}
         if (splitGuts[i] == "def" && splitGuts.size() == 3 && splitGuts[i+2] == "{"){ // Defining a function
-          std::vector<std::string> functionGuts = gatherGuts(p, contents); // This will gather the function guts
-          std::string functionName = splitGuts[i+1];
-
-          _bt.call_def_func(functionName, "string", functionGuts);
+          _bt.call_def_func(splitGuts[i+1], gatherGuts(p, contents));
           break;
         }
         if (splitGuts[i] == "inc"){
@@ -43,23 +41,36 @@ void statements(std::vector<std::string> contents){
           variable *A = _bt.findVariable(splitGuts[i]);
           std::string potentialFuncName = splitGuts[i].substr(0, splitGuts[i].size()-2); // This removes the () from the name
           function *B = _bt.findFunction(potentialFuncName);
+          array *C = _bt.findArray(_bt.call_get_array_name(splitGuts[i]));
 
-          if (A && splitGuts[i+1] == "="){
+          if ((A || C) && splitGuts[i+1] == "="){
             if (splitGuts.size() == 5){ // Do we have enough for mathematical operations?
               std::string firstVariableOrValue = splitGuts[2], secondVariableOrValue = splitGuts[4];
-              if (A->constValue){ error("Can't modify a const, you can only read from it!"); break; }
+              if (A && A->constValue){ error("Can't modify a const, you can only read from it!"); break; }
               else{
-                if (splitGuts[3] == "+"){ A->value =_bt.call_add(firstVariableOrValue, secondVariableOrValue); }
-                else if (splitGuts[3] == "-"){ A->value = _bt.call_sub(firstVariableOrValue, secondVariableOrValue); }
-                else if (splitGuts[3] == "/"){ A->value = _bt.call_div(firstVariableOrValue, secondVariableOrValue); }
-                else if (splitGuts[3] == "//"){ A->value = _bt.call_mod(firstVariableOrValue, secondVariableOrValue); }
-                else if (splitGuts[3] == "*"){ A->value = _bt.call_mult(firstVariableOrValue, secondVariableOrValue); }
-                else if (splitGuts[3] == "**"){ A->value = _bt.call_raise(firstVariableOrValue, secondVariableOrValue); }
-                else{ error("Unknown mathematical operator " + splitGuts[3]); }
+                if (A){
+                  if (splitGuts[3] == "+"){ A->value =_bt.call_add(firstVariableOrValue, secondVariableOrValue); }
+                  else if (splitGuts[3] == "-"){ A->value = _bt.call_sub(firstVariableOrValue, secondVariableOrValue); }
+                  else if (splitGuts[3] == "/"){ A->value = _bt.call_div(firstVariableOrValue, secondVariableOrValue); }
+                  else if (splitGuts[3] == "//"){ A->value = _bt.call_mod(firstVariableOrValue, secondVariableOrValue); }
+                  else if (splitGuts[3] == "*"){ A->value = _bt.call_mult(firstVariableOrValue, secondVariableOrValue); }
+                  else if (splitGuts[3] == "**"){ A->value = _bt.call_raise(firstVariableOrValue, secondVariableOrValue); }
+                  else{ error("Unknown mathematical operator " + splitGuts[3]); }
+                }else{
+                  std::string index = _bt.call_get_array_index(splitGuts[i]);
+                  if (splitGuts[3] == "+"){ _bt.call_array_upd_at_ind(C, index, _bt.call_add(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "-"){ _bt.call_array_upd_at_ind(C, index, _bt.call_sub(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "/"){  _bt.call_array_upd_at_ind(C, index, _bt.call_div(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "//"){  _bt.call_array_upd_at_ind(C, index, _bt.call_mod(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "*"){ _bt.call_array_upd_at_ind(C, index, _bt.call_mult(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "**"){  _bt.call_array_upd_at_ind(C, index, _bt.call_raise(firstVariableOrValue, secondVariableOrValue)); }
+                  else{ error("Unknown mathematical operator " + splitGuts[3]); }
+                }
               }
               break;
-
-            }else{ _bt.call_upd_var(A, splitGuts[i+2]); break; } // Update the variable
+            }
+            else if (A){ _bt.call_upd_var(A, splitGuts[i+2]); break; } // Update the variable
+            else if (C){ _bt.call_array_upd_at_ind(C, _bt.call_get_array_index(splitGuts[i]) ,splitGuts[i+2]); break; }
           }
           else if (A && splitGuts[i+1] == "<<"){ _bt.call_leftShift(A, splitGuts[i+2]); break; }
           else if (A && splitGuts[i+1] == ">>"){ _bt.call_rightShift(A, splitGuts[i+2]); break;}

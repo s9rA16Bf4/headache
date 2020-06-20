@@ -21,7 +21,10 @@ void built::call_print(std::vector<std::string> listToPrint){
       message = message.substr(1); // Remove both the wings from 'message'
 
       variable *A = this->findVariable(message);
-      if (!A){ error("Variable "+message+" has not been declared!"); }
+      if (!A){
+        if (message.find("$") != std::string::npos){ std::cout << this->call_array_at_ind(message); } // is it perhaps an array?
+        else{ error("Variable "+message+" has not been declared!"); }
+      }
       else{
         if (A->value == "nL"){ std::cout << std::endl;}  // Its a newline variable
         else if (A->value == "tL"){ std::cout << "\t"; } // Tab
@@ -58,13 +61,25 @@ void built::call_def_var(std::string name, std::string value, bool constValue){
   }else{ error("Variable "+name+" has already been declared!"); return; }
 }
 
-void built::call_def_func(std::string name, std::string returnType, std::vector<std::string> guts){
+void built::call_def_arr(std::string name, std::vector<std::string> values, const int index){
+  array *A = this->findArray(name);
+
+  if (!A){
+    A = new array();
+    A->name = name;
+    for (int i = index+3; i < values.size(); i++){
+      if (values[i] == "%"){ break; }
+      else{ A->gut.push_back(values[i]); } }
+    arrays.push_back(A);
+  }else{ error("An array with the name, "+name+", already exists!"); }
+}
+
+void built::call_def_func(std::string name, std::vector<std::string> guts){
   function *A = this->findFunction(name);
 
   if (!A){
     A = new function();
     A->name = name;
-    A->returnType = returnType;
     A->guts = guts;
 
     functions.push_back(A); // Save the function
@@ -171,6 +186,18 @@ function* built::findFunction(std::string name){
   return A;
 }
 
+array* built::findArray(std::string name){
+  array* A = nullptr;
+
+  for (array* arr:arrays){
+    if (arr->name == name){
+      A = arr;
+      break; // If we have found our variable, then there is no point in continuing
+    }
+  }
+  return A;
+}
+
 bool built::call_inc(std::vector<std::string> &guts, std::string fileName, const int index, std::string sectionName){
   std::fstream openFile(fileName);
   bool result = false;
@@ -210,18 +237,25 @@ bool built::call_statement_check(std::string &valueA, std::string &valueB, std::
     if (valueA[0] == '$'){ valueA.erase(0,1); }
     else{ valueA.erase(0,2); } // This removes the dollarsign and the [ symbol
     // but is it a variabel?
-    variable *A = this->findVariable(valueA);
-    if (!A){ error("Undeclared variabel "+valueA); return toReturn; }
-    else{ valueA = A->value; }
+
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{ // its a variable
+      variable *A = this->findVariable(valueA);
+      if (!A){ error("Undeclared variabel "+valueA); return toReturn; }
+      else{ valueA = A->value; }
+    }
   }else if (valueA[0] == '['){ valueA.erase(0,1); }
 
   if (valueB[0] == '$' && valueB[valueB.size()-1] == ']' || valueB[0] == '$'){
     if (valueB[0] == '$' && valueB[valueB.size()-1] != ']'){ valueB.erase(0,1); }
     else{ valueB.erase(0,1); valueB.erase(valueB.size()-1); }
 
-    variable *B = this->findVariable(valueB);
-    if (!B){ error("Undeclared variabel "+valueB); return toReturn; }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{ // no its a variable
+      variable *B = this->findVariable(valueB);
+      if (!B){ error("Undeclared variabel "+valueB); return toReturn; }
+      else{ valueB = B->value; }
+    }
   }else if (valueB[valueB.size()-1] == ']'){ valueB.erase(valueB.size()-1); }
 
   try{
@@ -255,20 +289,75 @@ void built::call_rightShift(variable* A, std::string value){
   }catch(std::invalid_argument& e){ error("Both the value of the variable and the value to shift must be ints!"); return; }
 }
 
+std::string built::call_array_at_ind(std::string arrayName){
+  std::string index = this->call_get_array_index(arrayName), arrName = this->call_get_array_name(arrayName), toReturn = "";
+
+  array *A = this->findArray(arrName);
+  if (!A){ error("Undeclared array called "+arrName); }
+  else{
+    int indexInt = 0;
+    variable *B = this->findVariable(index);
+    if (B){ index = B->value; }
+
+    try{ indexInt = std::stoi(index); }
+    catch(std::invalid_argument& e){ error("The index you're trying to reach must be an int!"); return ""; }
+    if (indexInt >= A->gut.size() || indexInt < 0){ error("The index is out of bounds!"); }
+    else{ toReturn = A->gut[indexInt]; }
+  }
+
+  return toReturn;
+}
+
+void built::call_array_upd_at_ind(array *A, std::string index, std::string value){
+  int indexInt = 0;
+  try{ indexInt = std::stoi(index); } // Tries to convert it to an int
+  catch(std::invalid_argument& e){ error("Index can't be a string and must be an int"); return; }
+  if (indexInt >= A->gut.size()){ error("The index is out of bounds"); return;}
+
+  A->gut[indexInt] = value; // And update
+}
+
+std::string built::call_get_array_name(std::string name){
+  std::size_t prevPos = 0, pos = 0;
+  bool run = true;
+  while(run){
+    pos = name.find("$");
+    if (pos != std::string::npos){
+      name.erase(prevPos, pos+1);
+      prevPos = pos;
+    }else{ run = false; }
+  }
+  return name;
+}
+
+std::string built::call_get_array_index(std::string name){
+  std::string index = "";
+  unsigned int i = 0;
+  if (name[0] == '$'){ i++; } // jump a step
+  while(name[i] != '$'){ index += name[i]; i++; }
+  return index;
+}
+
 // Mathematical operators
 std::string built::call_add(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   try{
@@ -283,16 +372,22 @@ std::string built::call_add(std::string valueA, std::string valueB){
 std::string built::call_sub(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   int result = 0;
@@ -304,16 +399,22 @@ std::string built::call_sub(std::string valueA, std::string valueB){
 std::string built::call_div(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   float result = 0;
@@ -328,16 +429,22 @@ std::string built::call_div(std::string valueA, std::string valueB){
 std::string built::call_mod(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   int result = 0;
@@ -349,16 +456,22 @@ std::string built::call_mod(std::string valueA, std::string valueB){
 std::string built::call_mult(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   float result = 0;
@@ -370,16 +483,22 @@ std::string built::call_mult(std::string valueA, std::string valueB){
 std::string built::call_raise(std::string valueA, std::string valueB){
   if (valueA[0] == '$'){ // is valueA a variable?
     valueA.erase(0,1); // Remove the dollar sign
-    variable *A = this->findVariable(valueA); // find it
-    if (!A){ error("Variable "+valueA+" has not been defined!"); }
-    else{ valueA = A->value; }
+    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_at_ind(valueA); } // its an array
+    else{
+      variable *A = this->findVariable(valueA); // find it
+      if (!A){ error("Variable "+valueA+" has not been defined!"); }
+      else{ valueA = A->value; }
+    }
   }
 
   if (valueB[0] == '$'){ // is valueB a variable?
     valueB.erase(0,1); // Remove the dollar sign
-    variable *B = this->findVariable(valueB); // find it
-    if (!B){ error("Variable "+valueB+" has not been defined!"); }
-    else{ valueB = B->value; }
+    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_at_ind(valueB); } // its an array
+    else{
+      variable *B = this->findVariable(valueB); // find it
+      if (!B){ error("Variable "+valueB+" has not been defined!"); }
+      else{ valueB = B->value; }
+    }
   }
 
   int result = 1;
