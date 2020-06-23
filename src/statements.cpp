@@ -4,7 +4,6 @@
 void statements(std::vector<std::string> contents){
   process _p;
   built _bt;
-
   std::vector<std::string> splitGuts;
 
   for (unsigned int p = 0; p < contents.size(); p++){
@@ -13,14 +12,14 @@ void statements(std::vector<std::string> contents){
       // Great wall of if's
       if (splitGuts[0] != "%"){ // If the line starts with a % then its a comment and shall be ignored
         if (splitGuts[i] == "let" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], false); break; } // variable dec
-        if (splitGuts[i] == "let" && splitGuts[i+2] == ":="){ _bt.call_def_arr(splitGuts[i+1], splitGuts, i); break; } // array dec
-        if (splitGuts[i] == "const" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], true); break; }
-        if (splitGuts[i] == "print"){ _bt.call_print(splitGuts); break;}
-        if (splitGuts[i] == "def" && splitGuts.size() == 3 && splitGuts[i+2] == "{"){ // Defining a function
+        else if (splitGuts[i] == "let" && splitGuts[i+2] == ":="){ _bt.call_def_arr(splitGuts[i+1], splitGuts, i); break; } // array dec
+        else if (splitGuts[i] == "const" && splitGuts[i+2] == "="){ _bt.call_def_var(splitGuts[i+1], splitGuts[i+3], true); break; }
+        else if (splitGuts[i] == "print"){ _bt.call_print(splitGuts); break;}
+        else if (splitGuts[i] == "def" && splitGuts.size() == 3 && splitGuts[i+2] == "{"){ // Defining a function
           _bt.call_def_func(splitGuts[i+1], gatherGuts(p, contents));
           break;
         }
-        if (splitGuts[i] == "inc"){
+        else if (splitGuts[i] == "inc"){
           bool result = false;
           if (splitGuts.size() == 2){ result = _bt.call_inc(contents, splitGuts[i+1], p, "NULL"); }
           else if (splitGuts.size() == 4){ result = _bt.call_inc(contents, splitGuts[i+1], p, splitGuts[3]); }
@@ -29,14 +28,27 @@ void statements(std::vector<std::string> contents){
 
           break;
         }
-        if ((splitGuts[i] == "if" || splitGuts[i] == "while") && splitGuts[splitGuts.size()-1] == "{"){
+        else if ((splitGuts[i] == "if" || splitGuts[i] == "while") && splitGuts[splitGuts.size()-1] == "{"){
           std::vector<std::string> guts = gatherGuts(p, contents); // This will gather the necessary information
           if (splitGuts[0] == "if"){ _bt.call_if_run(splitGuts, guts); }
           else if (splitGuts[0] == "while"){ _bt.call_while_run(splitGuts, guts); }
           break;
         }
-        if (splitGuts[i] == "system" && splitGuts[i+1] == "{"){ _bt.call_system(gatherGuts(p,contents)); break; }
-        if (splitGuts[i] == "exit"){ std::exit(EXIT_FAILURE); } // Exits the program
+        else if (splitGuts[i] == "system" && splitGuts[i+1] == "{"){ _bt.call_local_system(gatherGuts(p,contents)); break; }
+        else if (splitGuts[i] == "exit"){ std::exit(EXIT_FAILURE); } // Exits the program
+        else if ((splitGuts[i] == "python") && splitGuts[i+1] == "{"){ _bt.call_local_python("NULL", gatherGuts(p, contents)); break; }
+        else if ((splitGuts[i] == "python") && splitGuts[i+2] == "{"){ _bt.call_local_python(splitGuts[i+1], gatherGuts(p, contents)); break; }
+        else if ((splitGuts[i] == "asm") && splitGuts[i+1] == "{"){ _bt.call_local_asm("NULL", gatherGuts(p, contents)); break; }
+        else if ((splitGuts[i] == "asm") && splitGuts[i+2] == "{"){ _bt.call_local_asm(splitGuts[i+1], gatherGuts(p, contents)); break; }
+        else if ((splitGuts[i] == "js") && splitGuts[i+1] == "{"){ _bt.call_local_node("NULL", gatherGuts(p, contents)); break; }
+        else if ((splitGuts[i] == "js") && splitGuts[i+2] == "{"){ _bt.call_local_node(splitGuts[i+1], gatherGuts(p, contents)); break; }
+        else if (splitGuts[i] == "goto"){ contents[p] = ""; p = _bt.call_goto(p, contents.size(), splitGuts[i+1]) - 1; break;}
+        else if (splitGuts[i] == "file" && splitGuts[i+2] == "{"){ _bt.call_local_file(splitGuts[i+1], gatherGuts(p, contents)); break; }
+        else if (splitGuts[i] == "read" && _bt.call_local_check_file_operation()){ _bt.call_local_file_read(splitGuts[i+1]); break; }
+        else if (splitGuts[i] == "write" && _bt.call_local_check_file_operation()){ _bt.call_local_file_write(splitGuts); break; }
+        else if (splitGuts[i] == "delete" && _bt.call_local_check_file_operation()){ _bt.call_local_file_remove(splitGuts[i+1]); break; }
+
+
         else{
           variable *A = _bt.findVariable(splitGuts[i]);
           std::string potentialFuncName = splitGuts[i].substr(0, splitGuts[i].size()-2); // This removes the () from the name
@@ -58,19 +70,19 @@ void statements(std::vector<std::string> contents){
                   else{ error("Unknown mathematical operator " + splitGuts[3]); }
                 }else{
                   std::string index = _bt.call_get_array_index(splitGuts[i]);
-                  if (splitGuts[3] == "+"){ _bt.call_array_upd_at_ind(C, index, _bt.call_add(firstVariableOrValue, secondVariableOrValue)); }
-                  else if (splitGuts[3] == "-"){ _bt.call_array_upd_at_ind(C, index, _bt.call_sub(firstVariableOrValue, secondVariableOrValue)); }
-                  else if (splitGuts[3] == "/"){  _bt.call_array_upd_at_ind(C, index, _bt.call_div(firstVariableOrValue, secondVariableOrValue)); }
-                  else if (splitGuts[3] == "//"){  _bt.call_array_upd_at_ind(C, index, _bt.call_mod(firstVariableOrValue, secondVariableOrValue)); }
-                  else if (splitGuts[3] == "*"){ _bt.call_array_upd_at_ind(C, index, _bt.call_mult(firstVariableOrValue, secondVariableOrValue)); }
-                  else if (splitGuts[3] == "**"){  _bt.call_array_upd_at_ind(C, index, _bt.call_raise(firstVariableOrValue, secondVariableOrValue)); }
+                  if (splitGuts[3] == "+"){ _bt.call_array_upd_at_inx(C, index, _bt.call_add(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "-"){ _bt.call_array_upd_at_inx(C, index, _bt.call_sub(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "/"){  _bt.call_array_upd_at_inx(C, index, _bt.call_div(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "//"){  _bt.call_array_upd_at_inx(C, index, _bt.call_mod(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "*"){ _bt.call_array_upd_at_inx(C, index, _bt.call_mult(firstVariableOrValue, secondVariableOrValue)); }
+                  else if (splitGuts[3] == "**"){  _bt.call_array_upd_at_inx(C, index, _bt.call_raise(firstVariableOrValue, secondVariableOrValue)); }
                   else{ error("Unknown mathematical operator " + splitGuts[3]); }
                 }
               }
               break;
             }
             else if (A){ _bt.call_upd_var(A, splitGuts[i+2]); break; } // Update the variable
-            else if (C){ _bt.call_array_upd_at_ind(C, _bt.call_get_array_index(splitGuts[i]) ,splitGuts[i+2]); break; }
+            else if (C){ _bt.call_array_upd_at_inx(C, _bt.call_get_array_index(splitGuts[i]) ,splitGuts[i+2]); break; }
           }
           else if (A && splitGuts[i+1] == "<<"){ _bt.call_leftShift(A, splitGuts[i+2]); break; }
           else if (A && splitGuts[i+1] == ">>"){ _bt.call_rightShift(A, splitGuts[i+2]); break;}
@@ -81,27 +93,3 @@ void statements(std::vector<std::string> contents){
     }
   }
  }
-
-static inline std::vector<std::string> gatherGuts(unsigned int &p, std::vector<std::string> contents){
-  std::vector<std::string> guts, localGuts;
-  std::string line;
-  process _p;
-  unsigned int lWing = 1, rWing = 0;
-
-  while(lWing != rWing){
-    localGuts = _p.split(contents[++p], " ");
-    for (unsigned int i = 0; i < localGuts.size(); i++){
-      if (localGuts[i] == "}"){ rWing++; }
-      else if (localGuts[i] == "{"){ lWing++; }
-        if (i == localGuts.size()-1){
-          line += localGuts[i];
-        }else{
-          line += localGuts[i] + " ";
-      }
-    }
-    guts.push_back(line); // Save the line
-    line = ""; // Reset it
-  }
-  guts.pop_back(); // Removes last object
-  return guts;
-}

@@ -10,5 +10,6 @@
 static std::vector<variable*> variables;
 static std::vector<function*> functions;
 static std::vector<array*> arrays;
+static std::vector<std::string> fileGut;
 
 #endif
