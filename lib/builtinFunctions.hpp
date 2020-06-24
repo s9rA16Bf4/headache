@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <algorithm>
+#include <sqlite3.h>
 #include "globalValues.hpp"
 #include "errorHandling.hpp"
 #include "process.hpp"
@@ -28,7 +29,6 @@ public:
   void call_def_arr(std::string, std::vector<std::string>, const int); // Defines an array
   void call_def_func(std::string, std::vector<std::string>);
 
-  std::vector<std::string> call_include(std::string); // Includes the contents of the file specificed, else raises an error
   void call_upd_var(variable*, std::string); // Updates the value of a variable, either with another value or the guts of another variable
   void call_run_func(function*); // Runs a function
   bool call_inc(std::vector<std::string>&, std::string, const int, std::string); // includes the all the contents of a file
@@ -51,6 +51,7 @@ public:
   void call_local_python(std::string, std::vector<std::string>); // Runs python code
   void call_local_asm(std::string, std::vector<std::string>); // Runs asm code, needs nasm to work
   void call_local_node(std::string, std::vector<std::string>); // Runs node code
+  void call_local_sql(std::string, std::vector<std::string>); // Runs sql operations
   std::string call_local_find_var(std::string, const char); // Takes a string and finds out if it contains a variable
 
   unsigned int call_goto(const unsigned int, const unsigned int,std::string); // Changes the flow and jumps to a specific line
@@ -69,6 +70,7 @@ public:
   bool call_local_check_js_operation();
   bool call_local_check_python_operation();
 
+  std::string call_math_start(std::string, std::string, std::string); // Start func for math operators
   std::string call_add(std::string, std::string); // Adds two values
   std::string call_sub(std::string, std::string); // Subtracts the value of one with a another
   std::string call_div(std::string, std::string); // Divides two values
@@ -76,9 +78,19 @@ public:
   std::string call_mult(std::string, std::string); // Multiplies two values
   std::string call_raise(std::string, std::string); // Raises two values together
 
+  std::string findVarOrArray(std::string); // Finds if the given string is a variable or an index in a array, if that's the case then the value is returned else the given value
   variable* findVariable(std::string); // Finds the variable assocciated with the name, else nullptr
   function* findFunction(std::string); // Finds the function assocciated with the name, else nullptr
   array* findArray(std::string); // Finds the array assocciated with the name, else nullptr
 };
+
+static inline int callback(void *NotUsed, int argc, char **argv, char **colName) { // callback function for sqlite usage
+   for (int i = 0; i < argc; i++) {
+     if (argv[i]){ std::cout << argv[i]; }
+     else{ std::cout << "NULL"; }
+     std::cout << std::endl;
+   }
+   return 0;
+}
 
 #endif

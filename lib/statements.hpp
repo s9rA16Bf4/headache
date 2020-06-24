@@ -15,7 +15,8 @@ static inline std::vector<std::string> gatherGuts(unsigned int &p, std::vector<s
     for (unsigned int i = 0; i < localGuts.size(); i++){
       if (localGuts[i] == "}"){ rWing++; }
       else if (localGuts[i] == "{"){ lWing++; }
-        if (i == localGuts.size()-1){
+
+      if (i == localGuts.size()-1){
           line += localGuts[i];
         }else{
           line += localGuts[i] + " ";

@@ -91,19 +91,6 @@ void built::call_def_func(std::string name, std::vector<std::string> guts){
   }else{ error("Function "+name+" has already been declared!"); return; }
 }
 
-std::vector<std::string> built::call_include(std::string fileName){
-  std::fstream openFile(fileName);
-  std::vector<std::string> toReturn;
-
-  if (openFile.is_open()){
-    std::string line;
-    while(std::getline(openFile, line)){ toReturn.push_back(line); }
-
-  }else{ error("The file, "+fileName+", cannot be found in the given path!"); return toReturn; }
-
-  return toReturn;
-}
-
 void built::call_upd_var(variable* A, std::string varOrValue){
   if (varOrValue[0] == '$'){ varOrValue.erase(0,1); }
   variable *B = this->findVariable(varOrValue); // Is it a variable or a value?
@@ -336,15 +323,7 @@ void built::call_array_upd_at_inx(array *A, std::string index, std::string value
   else{ // Might be an array
     std::string getIndex = this->call_get_array_index(value);
     array* D = this->findArray(this->call_get_array_name(value));
-    if (D){
-      variable *E = this->findVariable(getIndex);
-      if (E){ getIndex = E->value; }
-
-      try{ indexInt = std::stoi(getIndex); } // Tries to convert it to an int
-      catch(std::invalid_argument& e){ error("Index can't be a string and must be an int"); return; }
-      if (indexInt > A->gut.size()-1 || indexInt < 0){  error("The index is out of bounds"); return;}
-      value = D->gut[indexInt];
-    }
+    if (D){ value = this->call_array_value_at_inx(value); }
   }
 
   try{ indexInt = std::stoi(index); } // Tries to convert it to an int
@@ -495,6 +474,25 @@ void built::call_local_node(std::string fileName, std::vector<std::string> guts)
     this->nodeOperation = false;
 }
 void built::call_local_system(std::vector<std::string> guts){ for (std::string entry:guts){ system(entry.c_str()); }}
+void built::call_local_sql(std::string dbName, std::vector<std::string> guts){
+  this->sqlOperation = true;
+
+  sqlite3 *db;
+  char *errorMsg = 0;
+
+  if (sqlite3_open(dbName.c_str(), &db)){ error("Failed to open database! "+std::string(sqlite3_errmsg(db))); return;}
+  else{
+    for (std::string sql:guts){
+      if (sql[0] != '%'){
+        sql = this->call_local_find_var(sql, '/'); // Checks if the given string contains a call for a array and/or variable
+        if (sqlite3_exec(db, sql.c_str(), callback, 0, &errorMsg) != SQLITE_OK){ error("SQL error: "+std::to_string(*errorMsg)); sqlite3_free(errorMsg); return; }
+      }
+    }
+    sqlite3_close(db);
+  }
+
+  this->sqlOperation = false;
+}
 
 unsigned int built::call_goto(const unsigned int oldValue, const unsigned int maxValue ,std::string lineToGo){
   int toReturn = oldValue, lineToGoInt;
@@ -564,26 +562,24 @@ bool built::call_local_check_js_operation(){ return this->nodeOperation; }
 bool built::call_local_check_python_operation(){ return this->pythonOperation; }
 
 // Mathematical operators
-std::string built::call_add(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
 
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
+std::string built::call_math_start(std::string valueA, std::string valueB, std::string operation){
+  std::string toReturn = "";
+  valueA = this->findVarOrArray(valueA);
+  valueB = this->findVarOrArray(valueB);
+
+  if (operation == "+"){ toReturn = this->call_add(valueA, valueB); }
+  else if (operation == "-"){ toReturn = this->call_sub(valueA, valueB); }
+  else if (operation == "/"){ toReturn = this->call_div(valueA, valueB); }
+  else if (operation == "//"){ toReturn = this->call_mod(valueA, valueB); }
+  else if (operation == "*"){ toReturn = this->call_mult(valueA, valueB); }
+  else if (operation == "**"){ toReturn = this->call_raise(valueA, valueB); }
+  else{ error("Unknown mathematical operator "+operation); }
+
+  return toReturn;
+}
+
+std::string built::call_add(std::string valueA, std::string valueB){
 
   try{
     int iA = std::stoi(valueA);
@@ -594,25 +590,6 @@ std::string built::call_add(std::string valueA, std::string valueB){
   }
 }
 std::string built::call_sub(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
-
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
 
   int result = 0;
   try{ result = std::stoi(valueA) - std::stoi(valueB); }
@@ -620,25 +597,6 @@ std::string built::call_sub(std::string valueA, std::string valueB){
   return std::to_string(result);
 }
 std::string built::call_div(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
-
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
 
   float result = 0;
   try{
@@ -649,25 +607,6 @@ std::string built::call_div(std::string valueA, std::string valueB){
   return std::to_string(result);
 }
 std::string built::call_mod(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
-
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
 
   int result = 0;
   try{ result = std::stoi(valueA) % std::stoi(valueB); }
@@ -675,25 +614,6 @@ std::string built::call_mod(std::string valueA, std::string valueB){
   return std::to_string(result);
 }
 std::string built::call_mult(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
-
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
 
   float result = 0;
   try{ result = std::stof(valueA) * std::stof(valueB); }
@@ -701,26 +621,6 @@ std::string built::call_mult(std::string valueA, std::string valueB){
   return std::to_string(result);
 }
 std::string built::call_raise(std::string valueA, std::string valueB){
-  if (valueA[0] == '$'){ // is valueA a variable?
-    valueA.erase(0,1); // Remove the dollar sign
-    if (valueA.find("$") != std::string::npos){ valueA = this->call_array_value_at_inx(valueA); } // its an array
-    else{
-      variable *A = this->findVariable(valueA); // find it
-      if (!A){ error("Variable "+valueA+" has not been defined!"); }
-      else{ valueA = A->value; }
-    }
-  }
-
-  if (valueB[0] == '$'){ // is valueB a variable?
-    valueB.erase(0,1); // Remove the dollar sign
-    if (valueB.find("$") != std::string::npos){ valueB = this->call_array_value_at_inx(valueB); } // its an array
-    else{
-      variable *B = this->findVariable(valueB); // find it
-      if (!B){ error("Variable "+valueB+" has not been defined!"); }
-      else{ valueB = B->value; }
-    }
-  }
-
   int result = 1;
   int floor = 0;
   try{
@@ -732,4 +632,18 @@ std::string built::call_raise(std::string valueA, std::string valueB){
   }
   catch(std::invalid_argument& e){ error("Can't raise a string"); return "";}
   return std::to_string(result);
+}
+
+std::string built::findVarOrArray(std::string name){
+
+  if (name[0] == '$'){ // is valueB a variable?
+    name.erase(0,1); // Remove the dollar sign
+    if (name.find("$") != std::string::npos){ name = this->call_array_value_at_inx(name); } // its an array
+    else{
+      variable *A = this->findVariable(name); // find it
+      if (!A){ error("Variable "+name+" has not been defined!"); }
+      else{ name = A->value; }
+    }
+  }
+  return name;
 }
