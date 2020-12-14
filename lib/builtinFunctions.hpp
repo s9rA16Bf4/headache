@@ -67,7 +67,6 @@ public:
   bool call_local_check_file_operation();
   bool call_local_check_sql_operation();
   bool call_local_check_asm_operation();
-  bool call_local_check_js_operation();
   bool call_local_check_python_operation();
 
   std::string call_math_start(std::string, std::string, std::string); // Start func for math operators
