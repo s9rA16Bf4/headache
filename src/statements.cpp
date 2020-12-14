@@ -44,10 +44,6 @@ void statements(std::vector<std::string> contents){
           _bt.call_local_asm((splitGuts[i+1] != "{")?splitGuts[i+1]:"NULL", gatherGuts(p, contents));
           break;
         }
-        else if ((splitGuts[i] == "js") && (splitGuts[i+1] == "{" || splitGuts[i+2] == "{") && !_bt.call_local_check_js_operation()){
-          _bt.call_local_node((splitGuts[i+1] != "{")?splitGuts[i+1]:"NULL", gatherGuts(p, contents));
-          break;
-        }
         else if (splitGuts[i] == "goto"){ contents[p] = ""; p = _bt.call_goto(p, contents.size(), splitGuts[i+1]) - 1; break;}
         else if (splitGuts[i] == "file" && splitGuts[i+2] == "{"){ _bt.call_local_file(splitGuts[i+1], gatherGuts(p, contents)); break; }
         else if (splitGuts[i] == "read" && _bt.call_local_check_file_operation()){ _bt.call_local_file_read(splitGuts[i+1]); break; }

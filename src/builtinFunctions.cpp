@@ -446,33 +446,6 @@ void built::call_local_asm(std::string fileName, std::vector<std::string> guts){
     }else{ error("Failed to open file"); }
     this->asmOperation = false;
 }
-void built::call_local_node(std::string fileName, std::vector<std::string> guts){
-  this->nodeOperation = true;
-  process _p;
-
-  if (fileName == "NULL"){ fileName = "tmpFile"; }
-
-  std::ofstream openFile(fileName, std::ios_base::app);
-  std::vector<std::string> localGuts;
-  std::string systemCommand = "node " + fileName, systemCommandRM = "", line = "";
-
-
-  if (OS_WINDOWS) { systemCommandRM = "del " + fileName; } //Windows based systems
-  else{ systemCommandRM =  "rm " + fileName; } // Nix based
-
-  if (openFile.is_open()){
-      for (std::string entry:guts){
-        entry = this->call_local_find_var(entry, '/');
-        openFile << entry << std::endl; // Write the line
-      }
-
-      openFile.close(); // Close the file
-      std::system(systemCommand.c_str()); // Run the file
-      if (fileName == "tmpFile"){ std::system(systemCommandRM.c_str()); } // Remove the file as its only a temp file
-
-    }else{ error("Failed to open file"); }
-    this->nodeOperation = false;
-}
 void built::call_local_system(std::vector<std::string> guts){ for (std::string entry:guts){ system(entry.c_str()); }}
 void built::call_local_sql(std::string dbName, std::vector<std::string> guts){
   this->sqlOperation = true;
@@ -558,7 +531,6 @@ void built::call_local_file_save(std::string fileName){
 bool built::call_local_check_file_operation(){ return this->fileOperation; }
 bool built::call_local_check_sql_operation(){ return this->sqlOperation; }
 bool built::call_local_check_asm_operation(){ return this->asmOperation; }
-bool built::call_local_check_js_operation(){ return this->nodeOperation; }
 bool built::call_local_check_python_operation(){ return this->pythonOperation; }
 
 // Mathematical operators
